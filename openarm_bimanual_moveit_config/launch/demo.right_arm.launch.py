@@ -142,13 +142,15 @@ def gravity_comp_node_launcher(context, description_package, use_fake_hardware,
             parameters=[{
                 # Required: KDL loads from this file
                 "urdf_path": urdf_path,
-                # Start at 0.0 — operator ramps up with `ros2 param set
-                # /gravity_comp_node g_scale <value>` after verifying sign.
-                "g_scale": 0.0,
+                # Tuned for OpenArm V10 right arm. URDF inertials in
+                # openarm_description appear ~17% lighter than the physical
+                # robot, so we scale up to 1.25. Override at runtime with
+                # `ros2 param set /gravity_comp_node g_scale <value>`.
+                "g_scale": 1.25,
                 "enable_right": True,
                 "enable_left": False,
                 "enable_compensation": True,
-                "verbose": True,
+                "verbose": False,
             }],
         )
     ]
