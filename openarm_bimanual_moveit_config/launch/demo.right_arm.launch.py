@@ -16,7 +16,13 @@ import os
 import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, LaunchContext
-from launch.actions import DeclareLaunchArgument, TimerAction, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    GroupAction,
+    OpaqueFunction,
+    TimerAction,
+)
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -95,6 +101,55 @@ def controller_spawner(context, robot_controller):
             package="controller_manager",
             executable="spawner",
             arguments=[right, "-c", "/controller_manager"],
+        )
+    ]
+
+
+def effort_controller_spawner():
+    """Spawn the right_forward_effort_controller used for gravity feedforward."""
+    return [
+        Node(
+            package="controller_manager",
+            executable="spawner",
+            arguments=[
+                "right_forward_effort_controller",
+                "-c", "/controller_manager",
+            ],
+        )
+    ]
+
+
+def gravity_comp_node_launcher(context, description_package, use_fake_hardware,
+                                right_can_interface):
+    """Dump the active robot_description to /tmp and start gravity_comp_node.
+
+    KDL parses URDF from a file path, so the xacro-expanded robot description
+    is written to a temp file mirroring exactly what controller_manager sees.
+    """
+    robot_description = generate_robot_description(
+        context, description_package, use_fake_hardware, right_can_interface,
+    )
+    urdf_path = "/tmp/openarm_v10_right_gravity.urdf"
+    with open(urdf_path, "w") as f:
+        f.write(robot_description)
+
+    return [
+        Node(
+            package="openarm_gravity_comp",
+            executable="gravity_comp_node",
+            name="gravity_comp_node",
+            output="screen",
+            parameters=[{
+                # Required: KDL loads from this file
+                "urdf_path": urdf_path,
+                # Start at 0.0 — operator ramps up with `ros2 param set
+                # /gravity_comp_node g_scale <value>` after verifying sign.
+                "g_scale": 0.0,
+                "enable_right": True,
+                "enable_left": False,
+                "enable_compensation": True,
+                "verbose": True,
+            }],
         )
     ]
 
@@ -183,6 +238,14 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "controllers_file",
             default_value="openarm_right_arm_moveit_controllers.yaml"),
+        DeclareLaunchArgument(
+            "enable_gravity_comp",
+            default_value="false",
+            description=(
+                "Enable gravity compensation: spawns right_forward_effort_controller "
+                "and starts gravity_comp_node. Operator must ramp g_scale via "
+                "`ros2 param set /gravity_comp_node g_scale ...` (starts at 0.0)."),
+        ),
     ]
 
     description_package = LaunchConfiguration("description_package")
@@ -225,6 +288,23 @@ def generate_launch_description():
         arguments=["right_gripper_controller", "-c", "/controller_manager"],
     )
 
+    enable_gravity_comp = LaunchConfiguration("enable_gravity_comp")
+
+    effort_spawner_func = OpaqueFunction(
+        function=lambda context: effort_controller_spawner()
+    )
+    gravity_comp_func = OpaqueFunction(
+        function=gravity_comp_node_launcher,
+        args=[description_package, use_fake_hardware, right_can_interface],
+    )
+
+    # spawner waits for controller_manager on its own; gravity_comp_node idles
+    # until the first /joint_states arrives. No explicit delay needed.
+    forward_effort_group = GroupAction(
+        condition=IfCondition(enable_gravity_comp),
+        actions=[effort_spawner_func, gravity_comp_func],
+    )
+
     return LaunchDescription(
         declared_arguments
         + [
@@ -233,5 +313,6 @@ def generate_launch_description():
             TimerAction(period=2.0, actions=[jsb_spawner]),
             TimerAction(period=1.0, actions=[controller_spawner_func]),
             TimerAction(period=1.0, actions=[gripper_spawner]),
+            forward_effort_group,
         ]
     )

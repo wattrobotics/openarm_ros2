@@ -32,6 +32,9 @@ controller_manager:
     right_gripper_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
+    right_forward_effort_controller:
+      type: forward_command_controller/ForwardCommandController
+
 right_forward_position_controller:
   ros__parameters:
     joints:
@@ -111,3 +114,19 @@ right_gripper_controller:
     constraints:
       stopped_velocity_tolerance: 0.01
       goal_time: 0.0
+
+right_forward_effort_controller:
+  ros__parameters:
+    joints:
+      - openarm_right_joint1
+      - openarm_right_joint2
+      - openarm_right_joint3
+      - openarm_right_joint4
+      - openarm_right_joint5
+      - openarm_right_joint6
+      - openarm_right_joint7
+    interface_name: effort
+    command_interfaces:
+      - effort
+    state_interfaces:
+      - position
