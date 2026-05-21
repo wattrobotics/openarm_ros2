@@ -17,7 +17,7 @@
 
 <robot name="openarm">
     <group name="right_arm">
-        <chain base_link="openarm_right_link0" tip_link="openarm_right_hand"/>
+        <chain base_link="openarm_right_link0" tip_link="end_point_link"/>
     </group>
     <group name="right_gripper">
         <joint name="openarm_right_finger_joint1"/>
@@ -40,6 +40,15 @@
         <joint name="openarm_right_joint5" value="0"/>
         <joint name="openarm_right_joint6" value="0"/>
         <joint name="openarm_right_joint7" value="0"/>
+    </group_state>
+    <group_state name="updown" group="right_arm">
+        <joint name="openarm_right_joint1" value="0.2848"/>
+        <joint name="openarm_right_joint2" value="0.4480"/>
+        <joint name="openarm_right_joint3" value="0.4423"/>
+        <joint name="openarm_right_joint4" value="1.6890"/>
+        <joint name="openarm_right_joint5" value="0.5087"/>
+        <joint name="openarm_right_joint6" value="0.3328"/>
+        <joint name="openarm_right_joint7" value="0.2184"/>
     </group_state>
     <group_state name="closed" group="right_gripper">
         <joint name="openarm_right_finger_joint1" value="0"/>

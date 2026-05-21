@@ -184,24 +184,29 @@ def moveit_nodes_spawner(context, description_package, use_fake_hardware):
         .trajectory_execution(
             file_path=f"config/{CONFIG_DIR}/moveit_controllers_right.yaml")
         .planning_pipelines(
-            pipelines=["ompl"],
+            pipelines=["ompl", "stomp", "chomp",
+                       "pilz_industrial_motion_planner"],
             default_planning_pipeline="ompl",
         )
+        .pilz_cartesian_limits(
+            file_path=f"config/{CONFIG_DIR}/pilz_cartesian_limits.yaml")
         .to_moveit_configs()
     )
 
     moveit_params = moveit_config.to_dict()
 
-    pilz_cartesian_limits_path = os.path.join(
-        moveit_pkg_path, "config", CONFIG_DIR, "pilz_cartesian_limits.yaml"
-    )
-    if os.path.exists(pilz_cartesian_limits_path):
-        import yaml
-        with open(pilz_cartesian_limits_path, 'r') as f:
-            config_data = yaml.safe_load(f)
-            if "cartesian_limits" in config_data:
-                moveit_params.setdefault(
-                    "robot_description_planning", {}).update(config_data)
+    import yaml
+
+    for fname in ("ompl_planning.yaml", "stomp_planning.yaml",
+                  "chomp_planning.yaml",
+                  "pilz_industrial_motion_planner.yaml"):
+        path = os.path.join(moveit_pkg_path, "config", CONFIG_DIR, fname)
+        if not os.path.exists(path):
+            continue
+        with open(path, 'r') as f:
+            data = yaml.safe_load(f)
+        if data:
+            moveit_params.update(data)
 
     rviz_cfg = os.path.join(moveit_pkg_path, "config", CONFIG_DIR, "moveit.rviz")
 
